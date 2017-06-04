@@ -22,6 +22,7 @@ class MemTestModule(val hwConfig:HardwareConfig, val actualBW:Int) extends Modul
     val testout=Output(Bits(amem.lineWidth.W))
   })
   amem.io.addr:=io.addr
+  amem.io.waddr:=io.addr
   amem.io.in:=io.in
   io.out:=amem.io.out
   amem.io.wen:=io.wen

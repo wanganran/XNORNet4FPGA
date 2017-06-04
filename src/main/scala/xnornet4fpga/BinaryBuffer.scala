@@ -8,6 +8,7 @@ import chisel3.util._
   */
 class BinaryBuffer(totalWidth:Int, rWidth:Int, wWidth:Int) extends Module{
   val io=IO(new Bundle{
+    val reset=Input(Bool())
     val in=Input(Bits(wWidth.W))
     val push=Input(Bool())
     val out=Output(Bits(rWidth.W))
@@ -20,19 +21,35 @@ class BinaryBuffer(totalWidth:Int, rWidth:Int, wWidth:Int) extends Module{
   val rCnt=totalWidth/rWidth
   val wPerR=wCnt/rCnt
 
-  val wPos=RegInit(0.U(log2Ceil(wCnt).W))
-  val rPos=RegInit(0.U(log2Ceil(rCnt).W))
+  val wPos=Reg(UInt(log2Ceil(wCnt).W))
+  val rPos=Reg(UInt(log2Ceil(rCnt).W))
 
   val mem=Reg(Vec(wCnt, Bits(wWidth.W)))
   val catMem=Vec((0 until wCnt by wPerR) map {i=>Cat((0 until wPerR) map {j=>mem(i+j)})})
 
   when(io.push){
-    mem(wPos):=io.in
-    wPos:=wPos+1.U
+    when(!(io.reset)) {
+      mem(wPos) := io.in
+      wPos := wPos + 1.U
+    } otherwise {
+      mem(0):=io.in
+      wPos:=1.U
+      rPos:=0.U
+    }
   }
 
   when(io.pop){
-    rPos:=rPos+1.U
+    when(!(io.reset)) {
+      rPos := rPos + 1.U
+    } otherwise{
+      rPos:=1.U
+      wPos:=0.U
+    }
+  }
+
+  when(io.reset && !(io.pop) && !(io.push)){
+    wPos:=0.U
+    rPos:=0.U
   }
 
   io.out:=catMem(rPos)

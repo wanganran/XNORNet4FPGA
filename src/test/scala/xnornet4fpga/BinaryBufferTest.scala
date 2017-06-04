@@ -17,6 +17,8 @@ class BinaryBufferTest(bb:BinaryBuffer, hwConfig:HardwareConfig) extends PeekPok
       t0=t0*2+gc(i+t*hwConfig.XNORFanout)
     poke(bb.io.in, t0)
     poke(bb.io.push, true)
+    if(t==0) poke(bb.io.reset, true)
+    else poke(bb.io.reset, false)
     step(1)
   }
 

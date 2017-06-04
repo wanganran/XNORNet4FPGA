@@ -27,20 +27,23 @@ class XNORNetInference(hardwareConfig: HardwareConfig) extends Module {
 
   val io=IO(new Bundle{
     val input=Input(Bits(hardwareConfig.XNORFanout.W))
+    //currently not used
     val bnBufferSel=Input(Bits(log2Ceil(bnFanout).W))
     val inputSel=Input(Bool())
     val inputBufferPush=Input(Bool())
     val inputBufferPop=Input(Bool())
+    val inputBufferReset=Input(Bool())
     val memSel=Input(Bool())
     val memAddr=Input(UInt(mem.addrWidth.W))
     val memOut=Output(Bits(mem.lineWidth.W))
     val memRen=Input(Bool())
     val memWen=Input(Bool())
     val memIn=Input(Bits(mem.lineWidth.W))
+    val memWAddr=Input(UInt(mem.addrWidth.W))
     val accEn=Input(Bool())
     val accSel=Input(UInt(log2Ceil(maxAccWidth).W))
     val accReset=Input(Bool())
-    val maxClear=Input(Bool())
+    val maxReset=Input(Bool())
     val maxEn=Input(Bool())
     val maxOffset=Input(UInt(hardwareConfig.resultWidth.W))
     val meanReset=Input(Bool())
@@ -65,6 +68,7 @@ class XNORNetInference(hardwareConfig: HardwareConfig) extends Module {
   binaryBuffer.io.in:=Mux(io.inputSel, io.input, inputWire)
   binaryBuffer.io.push:=io.inputBufferPush
   binaryBuffer.io.pop:=io.inputBufferPop
+  binaryBuffer.io.reset:=io.inputBufferReset
 
   val xnor=Module(new XNOR(
     hardwareConfig.XNORBitWidth, //input width
@@ -87,6 +91,7 @@ class XNORNetInference(hardwareConfig: HardwareConfig) extends Module {
 
   val mean=Module(new DelayedOutput(hardwareConfig.opWidth, 1))
   mean.io.update:=io.meanUpdate
+  mean.io.reset:=io.meanReset
 
   //Max
   val maxModule=Module(new MaxBuffer(
@@ -94,7 +99,7 @@ class XNORNetInference(hardwareConfig: HardwareConfig) extends Module {
     hardwareConfig.resultWidth,
     hardwareConfig.XNORFanout))
   maxModule.io.en:=io.maxEn
-  maxModule.io.reset:=io.maxClear
+  maxModule.io.reset:=io.maxReset
   maxModule.io.offset:=io.maxOffset
   io.result:=maxModule.io.out
 
@@ -149,7 +154,7 @@ class XNORNetInference(hardwareConfig: HardwareConfig) extends Module {
 
   inputWire:=Cat(signs)
 
-  meanBuffer.io.reset:=io.meanReset
+  meanBuffer.io.reset:=io.meanUpdate
   meanBuffer.io.cntInverse65536:=io.featureNumInverse65536
   mean.io.input:=meanBuffer.io.out
 }

@@ -1822,69 +1822,69 @@ module Accumulator(
   input         io_reset
 );
   reg [31:0] accumulator_0;
-  reg [31:0] _GEN_131;
+  reg [31:0] _GEN_130;
   reg [31:0] accumulator_1;
-  reg [31:0] _GEN_132;
+  reg [31:0] _GEN_131;
   reg [31:0] accumulator_2;
-  reg [31:0] _GEN_133;
+  reg [31:0] _GEN_132;
   reg [31:0] accumulator_3;
-  reg [31:0] _GEN_134;
+  reg [31:0] _GEN_133;
   reg [31:0] accumulator_4;
-  reg [31:0] _GEN_135;
+  reg [31:0] _GEN_134;
   reg [31:0] accumulator_5;
-  reg [31:0] _GEN_136;
+  reg [31:0] _GEN_135;
   reg [31:0] accumulator_6;
-  reg [31:0] _GEN_137;
+  reg [31:0] _GEN_136;
   reg [31:0] accumulator_7;
-  reg [31:0] _GEN_138;
+  reg [31:0] _GEN_137;
   reg [31:0] accumulator_8;
-  reg [31:0] _GEN_139;
+  reg [31:0] _GEN_138;
   reg [31:0] accumulator_9;
-  reg [31:0] _GEN_140;
+  reg [31:0] _GEN_139;
   reg [31:0] accumulator_10;
-  reg [31:0] _GEN_141;
+  reg [31:0] _GEN_140;
   reg [31:0] accumulator_11;
-  reg [31:0] _GEN_142;
+  reg [31:0] _GEN_141;
   reg [31:0] accumulator_12;
-  reg [31:0] _GEN_143;
+  reg [31:0] _GEN_142;
   reg [31:0] accumulator_13;
-  reg [31:0] _GEN_144;
+  reg [31:0] _GEN_143;
   reg [31:0] accumulator_14;
-  reg [31:0] _GEN_145;
+  reg [31:0] _GEN_144;
   reg [31:0] accumulator_15;
-  reg [31:0] _GEN_146;
+  reg [31:0] _GEN_145;
   reg [31:0] accumulator_16;
-  reg [31:0] _GEN_147;
+  reg [31:0] _GEN_146;
   reg [31:0] accumulator_17;
-  reg [31:0] _GEN_148;
+  reg [31:0] _GEN_147;
   reg [31:0] accumulator_18;
-  reg [31:0] _GEN_149;
+  reg [31:0] _GEN_148;
   reg [31:0] accumulator_19;
-  reg [31:0] _GEN_150;
+  reg [31:0] _GEN_149;
   reg [31:0] accumulator_20;
-  reg [31:0] _GEN_151;
+  reg [31:0] _GEN_150;
   reg [31:0] accumulator_21;
-  reg [31:0] _GEN_152;
+  reg [31:0] _GEN_151;
   reg [31:0] accumulator_22;
-  reg [31:0] _GEN_153;
+  reg [31:0] _GEN_152;
   reg [31:0] accumulator_23;
-  reg [31:0] _GEN_154;
+  reg [31:0] _GEN_153;
   reg [31:0] accumulator_24;
-  reg [31:0] _GEN_155;
+  reg [31:0] _GEN_154;
   reg [31:0] accumulator_25;
-  reg [31:0] _GEN_156;
+  reg [31:0] _GEN_155;
   reg [31:0] accumulator_26;
-  reg [31:0] _GEN_157;
+  reg [31:0] _GEN_156;
   reg [31:0] accumulator_27;
-  reg [31:0] _GEN_158;
+  reg [31:0] _GEN_157;
   reg [31:0] accumulator_28;
-  reg [31:0] _GEN_159;
+  reg [31:0] _GEN_158;
   reg [31:0] accumulator_29;
-  reg [31:0] _GEN_160;
+  reg [31:0] _GEN_159;
   reg [31:0] accumulator_30;
-  reg [31:0] _GEN_161;
+  reg [31:0] _GEN_160;
   reg [31:0] accumulator_31;
-  reg [31:0] _GEN_162;
+  reg [31:0] _GEN_161;
   wire  _T_46;
   wire  _T_47;
   wire [31:0] _GEN_0;
@@ -2085,8 +2085,7 @@ module Accumulator(
   wire [31:0] _GEN_127;
   wire [31:0] _GEN_128;
   wire [31:0] _GEN_129;
-  wire [31:0] _GEN_130;
-  assign io_out = _GEN_130;
+  assign io_out = _GEN_2;
   assign _T_46 = io_reset == 1'h0;
   assign _T_47 = io_en & _T_46;
   assign _GEN_0 = _GEN_33;
@@ -2287,7 +2286,6 @@ module Accumulator(
   assign _GEN_127 = _T_51 ? $signed(_T_171) : $signed(_GEN_95);
   assign _GEN_128 = _T_51 ? $signed(_T_175) : $signed(_GEN_96);
   assign _GEN_129 = _T_51 ? $signed(_T_179) : $signed(_GEN_97);
-  assign _GEN_130 = _T_51 ? $signed(io_in) : $signed(_GEN_2);
 `ifdef RANDOMIZE
   integer initvar;
   initial begin
@@ -2295,132 +2293,132 @@ module Accumulator(
       #0.002 begin end
     `endif
   `ifdef RANDOMIZE_REG_INIT
+  _GEN_130 = {1{$random}};
+  accumulator_0 = _GEN_130[31:0];
+  `endif
+  `ifdef RANDOMIZE_REG_INIT
   _GEN_131 = {1{$random}};
-  accumulator_0 = _GEN_131[31:0];
+  accumulator_1 = _GEN_131[31:0];
   `endif
   `ifdef RANDOMIZE_REG_INIT
   _GEN_132 = {1{$random}};
-  accumulator_1 = _GEN_132[31:0];
+  accumulator_2 = _GEN_132[31:0];
   `endif
   `ifdef RANDOMIZE_REG_INIT
   _GEN_133 = {1{$random}};
-  accumulator_2 = _GEN_133[31:0];
+  accumulator_3 = _GEN_133[31:0];
   `endif
   `ifdef RANDOMIZE_REG_INIT
   _GEN_134 = {1{$random}};
-  accumulator_3 = _GEN_134[31:0];
+  accumulator_4 = _GEN_134[31:0];
   `endif
   `ifdef RANDOMIZE_REG_INIT
   _GEN_135 = {1{$random}};
-  accumulator_4 = _GEN_135[31:0];
+  accumulator_5 = _GEN_135[31:0];
   `endif
   `ifdef RANDOMIZE_REG_INIT
   _GEN_136 = {1{$random}};
-  accumulator_5 = _GEN_136[31:0];
+  accumulator_6 = _GEN_136[31:0];
   `endif
   `ifdef RANDOMIZE_REG_INIT
   _GEN_137 = {1{$random}};
-  accumulator_6 = _GEN_137[31:0];
+  accumulator_7 = _GEN_137[31:0];
   `endif
   `ifdef RANDOMIZE_REG_INIT
   _GEN_138 = {1{$random}};
-  accumulator_7 = _GEN_138[31:0];
+  accumulator_8 = _GEN_138[31:0];
   `endif
   `ifdef RANDOMIZE_REG_INIT
   _GEN_139 = {1{$random}};
-  accumulator_8 = _GEN_139[31:0];
+  accumulator_9 = _GEN_139[31:0];
   `endif
   `ifdef RANDOMIZE_REG_INIT
   _GEN_140 = {1{$random}};
-  accumulator_9 = _GEN_140[31:0];
+  accumulator_10 = _GEN_140[31:0];
   `endif
   `ifdef RANDOMIZE_REG_INIT
   _GEN_141 = {1{$random}};
-  accumulator_10 = _GEN_141[31:0];
+  accumulator_11 = _GEN_141[31:0];
   `endif
   `ifdef RANDOMIZE_REG_INIT
   _GEN_142 = {1{$random}};
-  accumulator_11 = _GEN_142[31:0];
+  accumulator_12 = _GEN_142[31:0];
   `endif
   `ifdef RANDOMIZE_REG_INIT
   _GEN_143 = {1{$random}};
-  accumulator_12 = _GEN_143[31:0];
+  accumulator_13 = _GEN_143[31:0];
   `endif
   `ifdef RANDOMIZE_REG_INIT
   _GEN_144 = {1{$random}};
-  accumulator_13 = _GEN_144[31:0];
+  accumulator_14 = _GEN_144[31:0];
   `endif
   `ifdef RANDOMIZE_REG_INIT
   _GEN_145 = {1{$random}};
-  accumulator_14 = _GEN_145[31:0];
+  accumulator_15 = _GEN_145[31:0];
   `endif
   `ifdef RANDOMIZE_REG_INIT
   _GEN_146 = {1{$random}};
-  accumulator_15 = _GEN_146[31:0];
+  accumulator_16 = _GEN_146[31:0];
   `endif
   `ifdef RANDOMIZE_REG_INIT
   _GEN_147 = {1{$random}};
-  accumulator_16 = _GEN_147[31:0];
+  accumulator_17 = _GEN_147[31:0];
   `endif
   `ifdef RANDOMIZE_REG_INIT
   _GEN_148 = {1{$random}};
-  accumulator_17 = _GEN_148[31:0];
+  accumulator_18 = _GEN_148[31:0];
   `endif
   `ifdef RANDOMIZE_REG_INIT
   _GEN_149 = {1{$random}};
-  accumulator_18 = _GEN_149[31:0];
+  accumulator_19 = _GEN_149[31:0];
   `endif
   `ifdef RANDOMIZE_REG_INIT
   _GEN_150 = {1{$random}};
-  accumulator_19 = _GEN_150[31:0];
+  accumulator_20 = _GEN_150[31:0];
   `endif
   `ifdef RANDOMIZE_REG_INIT
   _GEN_151 = {1{$random}};
-  accumulator_20 = _GEN_151[31:0];
+  accumulator_21 = _GEN_151[31:0];
   `endif
   `ifdef RANDOMIZE_REG_INIT
   _GEN_152 = {1{$random}};
-  accumulator_21 = _GEN_152[31:0];
+  accumulator_22 = _GEN_152[31:0];
   `endif
   `ifdef RANDOMIZE_REG_INIT
   _GEN_153 = {1{$random}};
-  accumulator_22 = _GEN_153[31:0];
+  accumulator_23 = _GEN_153[31:0];
   `endif
   `ifdef RANDOMIZE_REG_INIT
   _GEN_154 = {1{$random}};
-  accumulator_23 = _GEN_154[31:0];
+  accumulator_24 = _GEN_154[31:0];
   `endif
   `ifdef RANDOMIZE_REG_INIT
   _GEN_155 = {1{$random}};
-  accumulator_24 = _GEN_155[31:0];
+  accumulator_25 = _GEN_155[31:0];
   `endif
   `ifdef RANDOMIZE_REG_INIT
   _GEN_156 = {1{$random}};
-  accumulator_25 = _GEN_156[31:0];
+  accumulator_26 = _GEN_156[31:0];
   `endif
   `ifdef RANDOMIZE_REG_INIT
   _GEN_157 = {1{$random}};
-  accumulator_26 = _GEN_157[31:0];
+  accumulator_27 = _GEN_157[31:0];
   `endif
   `ifdef RANDOMIZE_REG_INIT
   _GEN_158 = {1{$random}};
-  accumulator_27 = _GEN_158[31:0];
+  accumulator_28 = _GEN_158[31:0];
   `endif
   `ifdef RANDOMIZE_REG_INIT
   _GEN_159 = {1{$random}};
-  accumulator_28 = _GEN_159[31:0];
+  accumulator_29 = _GEN_159[31:0];
   `endif
   `ifdef RANDOMIZE_REG_INIT
   _GEN_160 = {1{$random}};
-  accumulator_29 = _GEN_160[31:0];
+  accumulator_30 = _GEN_160[31:0];
   `endif
   `ifdef RANDOMIZE_REG_INIT
   _GEN_161 = {1{$random}};
-  accumulator_30 = _GEN_161[31:0];
-  `endif
-  `ifdef RANDOMIZE_REG_INIT
-  _GEN_162 = {1{$random}};
-  accumulator_31 = _GEN_162[31:0];
+  accumulator_31 = _GEN_161[31:0];
   `endif
   end
 `endif

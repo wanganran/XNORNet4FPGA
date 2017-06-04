@@ -603,7 +603,6 @@ circuit IglooScheduler :
       node _T_177 = eq(UInt<5>("h01f"), io.sel) @[Accumulator.scala 31:30]
       node _T_179 = mux(_T_177, io.in, asSInt(UInt<1>("h00"))) @[Accumulator.scala 31:26]
       accumulator[31] <= _T_179 @[Accumulator.scala 31:21]
-      io.out <= io.in @[Accumulator.scala 32:11]
       skip @[Accumulator.scala 29:26]
     
   module MulAdd : 
@@ -740,7 +739,6 @@ circuit IglooScheduler :
       node _T_177 = eq(UInt<5>("h01f"), io.sel) @[Accumulator.scala 31:30]
       node _T_179 = mux(_T_177, io.in, asSInt(UInt<1>("h00"))) @[Accumulator.scala 31:26]
       accumulator[31] <= _T_179 @[Accumulator.scala 31:21]
-      io.out <= io.in @[Accumulator.scala 32:11]
       skip @[Accumulator.scala 29:26]
     
   module MulAdd_1 : 
@@ -877,7 +875,6 @@ circuit IglooScheduler :
       node _T_177 = eq(UInt<5>("h01f"), io.sel) @[Accumulator.scala 31:30]
       node _T_179 = mux(_T_177, io.in, asSInt(UInt<1>("h00"))) @[Accumulator.scala 31:26]
       accumulator[31] <= _T_179 @[Accumulator.scala 31:21]
-      io.out <= io.in @[Accumulator.scala 32:11]
       skip @[Accumulator.scala 29:26]
     
   module MulAdd_2 : 
@@ -1014,7 +1011,6 @@ circuit IglooScheduler :
       node _T_177 = eq(UInt<5>("h01f"), io.sel) @[Accumulator.scala 31:30]
       node _T_179 = mux(_T_177, io.in, asSInt(UInt<1>("h00"))) @[Accumulator.scala 31:26]
       accumulator[31] <= _T_179 @[Accumulator.scala 31:21]
-      io.out <= io.in @[Accumulator.scala 32:11]
       skip @[Accumulator.scala 29:26]
     
   module MulAdd_3 : 

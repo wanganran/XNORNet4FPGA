@@ -16,7 +16,7 @@ class MeanBuffer(bitw:Int, n:Int) extends Module {
 
   def abs(x: SInt) = Mux(x > 0.S, x, 0.S - x).asUInt()
 
-  val acc = RegInit(0.U(bitw.W))
+  val acc = Reg(UInt(bitw.W))
 
   val absSum=ArraySum(n).generate(io.in map abs)
   when(!(io.reset)) {

@@ -23,6 +23,7 @@ class AggregateMem(hwConfig:HardwareConfig, val actualBitWidthPerMem:Int) extend
 
   val io=IO(new Bundle{
     val addr=Input(UInt(addrWidth.W))
+    val waddr=Input(UInt(addrWidth.W))
     val in=Input(Bits(lineWidth.W))
     val out=Output(Bits(lineWidth.W))
     val wen=Input(Bool())
@@ -33,7 +34,7 @@ class AggregateMem(hwConfig:HardwareConfig, val actualBitWidthPerMem:Int) extend
     mems(i).io.ren:=io.ren
     mems(i).io.wen:=io.wen
     mems(i).io.rdAddr:=io.addr
-    mems(i).io.wrAddr:=io.addr
+    mems(i).io.wrAddr:=io.waddr
   }
   for(i<-0 until mems.length) {
     mems(i).io.wrData := Cat(0.U((hwConfig.memLineWidth-actualBitWidthPerMem).W), io.in((i + 1) * actualBitWidthPerMem - 1, i * actualBitWidthPerMem))

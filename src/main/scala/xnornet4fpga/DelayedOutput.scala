@@ -8,14 +8,17 @@ import chisel3.util._
   */
 class DelayedOutput(w:Int, default:Int) extends Module {
   val io=IO(new Bundle{
+    val reset=Input(Bool())
     val input=Input(Bits(w.W))
     val update=Input(Bool())
     val output=Output(Bits(w.W))
   })
 
-  val reg=RegInit(default.U(w.W))
+  val reg=Reg(UInt(w.W))
   io.output:=reg
   when(io.update){
     reg:=io.input
+  }.elsewhen(io.reset) {
+    reg:=default.U(w.W)
   }
 }

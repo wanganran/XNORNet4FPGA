@@ -29,6 +29,5 @@ class Accumulator(bitw:Int, n:Int) extends Module {
   when(io.en && io.reset){
     for(i<-0 until n)
       accumulator(i):=Mux(i.U===io.sel, io.in, 0.S)
-    io.out:=io.in
   }
 }
