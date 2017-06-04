@@ -23,7 +23,7 @@ class BinaryBuffer(totalWidth:Int, rWidth:Int, wWidth:Int) extends Module{
   val wPos=RegInit(0.U(log2Ceil(wCnt).W))
   val rPos=RegInit(0.U(log2Ceil(rCnt).W))
 
-  val mem=Vec(wCnt, Reg(Bits(wWidth.W)))
+  val mem=Reg(Vec(wCnt, Bits(wWidth.W)))
   val catMem=Vec((0 until wCnt by wPerR) map {i=>Cat((0 until wPerR) map {j=>mem(i+j)})})
 
   when(io.push){

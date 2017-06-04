@@ -17,15 +17,18 @@ class Accumulator(bitw:Int, n:Int) extends Module {
     val en=Input(Bool())
     val reset=Input(Bool())
   })
-  val accumulator = Vec(n, RegInit(0.S(bitw.W)))
+  val accumulator = Reg(Vec(n, SInt(bitw.W)))
   val acc = accumulator(io.sel)
+
   when(io.en && !(io.reset)) {
     acc := acc + io.in
   }
+
   io.out := acc
 
   when(io.en && io.reset){
     for(i<-0 until n)
       accumulator(i):=Mux(i.U===io.sel, io.in, 0.S)
+    io.out:=io.in
   }
 }

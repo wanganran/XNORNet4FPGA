@@ -23,7 +23,6 @@ class XNORNetInference(hardwareConfig: HardwareConfig, mem:AggregateMem
   val maxAccWidth=hardwareConfig.maxFeatures/hardwareConfig.XNORFanout //max # rounds of computations
   val bnCnt=hardwareConfig.memLineWidth/(hardwareConfig.bnParamWidth*2) //# of bn param pairs loaded each clock
   val bnFanout=hardwareConfig.XNORFanout/bnCnt //TODO:now only support 1
-  val aggregateMemWidth=hardwareConfig.memCnt*(hardwareConfig.XNORBitWidth*hardwareConfig.XNORFanout) //only these bits are used
 
   val io=IO(new Bundle{
     val input=Input(Bits(hardwareConfig.XNORFanout.W))
@@ -38,10 +37,9 @@ class XNORNetInference(hardwareConfig: HardwareConfig, mem:AggregateMem
     val maxClear=Input(Bool())
     val maxEn=Input(Bool())
     val maxOffset=Input(UInt(hardwareConfig.resultWidth.W))
-    val meanEn=Input(Bool())
     val meanReset=Input(Bool())
-    val featureNum=Input(UInt(8.W))
-    val meanMux=Input(Bool())
+    val featureNumInverse65536=Input(UInt(16.W))
+    val meanUpdate=Input(Bool())
 
     val result=Output(UInt(hardwareConfig.resultWidth.W))
   })
@@ -61,7 +59,7 @@ class XNORNetInference(hardwareConfig: HardwareConfig, mem:AggregateMem
     hardwareConfig.XNORFanout))  //how many vectors are XNORed parallel
   xnor.io.in1:=binaryBuffer.io.out
 
-  val memOut=mem.io.out(aggregateMemWidth-1, 0)
+  val memOut=mem.io.out
 
   xnor.io.in2:=Mux(
     io.memSel,
@@ -69,22 +67,14 @@ class XNORNetInference(hardwareConfig: HardwareConfig, mem:AggregateMem
     0.U(hardwareConfig.memLineWidth.W)
   )(hardwareConfig.memLineWidth-1-hardwareConfig.spareBandwidth, 0) //remove unused bits
 
-  val meanWire=Wire(Bits(hardwareConfig.opWidth.W)) //connected to mean buffer
-
   val meanBuffer=Module(new MeanBuffer(
     hardwareConfig.opWidth,
     hardwareConfig.XNORFanout))
 
-  /*//setup the bn selectors
-  if(bnCnt<hardwareConfig.XNORFanout) {
-    for (i <- 0 until bnCnt) {
-      if(bnFanout==2) {
-        val offset = (bnCnt - i) * hardwareConfig.bnParamWidth * 2
-        mem.io.out(offset - 1, offset - hardwareConfig.bnParamWidth * 2)
-      }
-    }
-  }
-*/
+  //Mean
+
+  val mean=Module(new DelayedOutput(hardwareConfig.opWidth, 1))
+  mean.io.update:=io.meanUpdate
 
   //Max
   val maxModule=Module(new MaxBuffer(
@@ -137,7 +127,7 @@ class XNORNetInference(hardwareConfig: HardwareConfig, mem:AggregateMem
         mem.io.out(offset-1, offset-hardwareConfig.bnParamWidth*2)
       )(hardwareConfig.bnParamWidth*2*bnCnt-1, 0)
     }
-    mulAdd.io.m:=meanWire
+    mulAdd.io.m:=mean.io.output
     mulAdd.io.b:=acc.io.out
     meanBuffer.io.in(i):=mulAdd.io.r
     maxModule.io.in(i):=mulAdd.io.r
@@ -147,46 +137,7 @@ class XNORNetInference(hardwareConfig: HardwareConfig, mem:AggregateMem
 
   inputWire:=Cat(signs)
 
-  meanBuffer.io.en:=io.meanEn
   meanBuffer.io.reset:=io.meanReset
-  meanBuffer.io.cnt:=io.featureNum
-  meanWire:=meanBuffer.io.out
-/*
-  def generateBitmap(params:Iterator[Any], hwConfig:HardwareConfig, dest:String){
-    val writer=(0 until hwConfig.memCnt) map {i=>new FileOutputStream(dest+i)}
-    val bitPerMem=hwConfig.memLineWidth/8*8
-    var currMem=0
-    var memOffset=0
-
-    def append(bit:Boolean): Unit = {
-      writer(currMem).write(if (bit) '1' else '0')
-      memOffset += 1
-      if (memOffset == bitPerMem) {
-        memOffset = 0
-        currMem = (currMem + 1) % hwConfig.memCnt
-      }
-    }
-    while(params.hasNext){
-      val content=params.next()
-      content match{
-        case bit:Boolean=> {
-          append(bit)
-        }
-        case numPair:(Int, Int)=>{
-          val bitNum=hwConfig.bnParamWidth
-          val num=((numPair._1&((1<<bitNum)-1))|((numPair._2&((1<<bitNum)-1))<<bitNum))
-          for(x<-0 until bitNum*2){
-            append((num&(1<<(bitNum*2-x-1)))>0) //first is MSB
-          }
-        }
-      }
-    }
-  }
-
-  def generateParamIterator(nNTopology: NNTopology): Unit ={
-    (0 until nNTopology.getTotalLayers()) foldLeft(Iterator[Any]()){case (it, layer)=>{
-
-    }}
-  }
-  */
+  meanBuffer.io.cntInverse65536:=io.featureNumInverse65536
+  mean.io.input:=meanBuffer.io.out
 }

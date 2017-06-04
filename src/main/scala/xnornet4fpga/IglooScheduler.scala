@@ -59,6 +59,7 @@ class IglooScheduler(hwConfig: HardwareConfig, topo:NNTopology) extends Module {
 
   //round k
   def round(x: Int, k: Int) = (x - 1) / k * k + k
+  def maxPower2(x:Int)=(1<<log2Floor(x))
 
   //auto symbol->state
   var symbols = Array[Symbol]()
@@ -72,12 +73,7 @@ class IglooScheduler(hwConfig: HardwareConfig, topo:NNTopology) extends Module {
     }
   }
 
-  val mem = Module(new AggregateMem(Array.fill(hwConfig.memCnt) {
-    Module(new Memo(
-      hwConfig.memLineWidth,
-      hwConfig.memAddrWidth,
-      hwConfig.memSize))
-  }))
+  val mem = Module(new AggregateMem(hwConfig, maxPower2(hwConfig.memLineWidth)))
 
   val hw = Module(new XNORNetInference(hwConfig, mem))
   //assign result
@@ -113,10 +109,10 @@ class IglooScheduler(hwConfig: HardwareConfig, topo:NNTopology) extends Module {
   def unset(x:Bits){x:=false.B}
 
   val inputSize=topo.getParameterSizeType(0).map{case (s, _)=>s}.sum
-  val x=inputSize/hw.aggregateMemWidth
+  val x=inputSize/mem.lineWidth
 
-  val inputBuffer = mem.io.out(hw.aggregateMemWidth - 1, 0).asTypeOf(
-    Vec(hw.aggregateMemWidth/hwConfig.XNORFanout,Bits(hwConfig.XNORFanout.W)))
+  val inputBuffer = mem.io.out(mem.lineWidth - 1, 0).asTypeOf(
+    Vec(mem.lineWidth/hwConfig.XNORFanout,Bits(hwConfig.XNORFanout.W)))
 
   val maxOffsetReg=Reg(UInt(hwConfig.resultWidth.W))
   hw.io.maxOffset:=maxOffsetReg
@@ -138,7 +134,7 @@ class IglooScheduler(hwConfig: HardwareConfig, topo:NNTopology) extends Module {
       set(hw.io.inputBufferPush)
       unset(hw.io.inputBufferPop)
 
-      val inputBufferLen = hw.aggregateMemWidth / hwConfig.XNORFanout
+      val inputBufferLen = mem.lineWidth / hwConfig.XNORFanout
       when(substate < (inputBufferLen - 1).U) {
         hw.io.input := inputBuffer((inputBufferLen - 1).U - substate)
         SS()

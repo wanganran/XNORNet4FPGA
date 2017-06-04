@@ -14,25 +14,32 @@ class MaxBuffer(bitw:Int, bitr:Int, n:Int) extends Module {
     val offset=Input(UInt(bitr.W))
     val out=Output(UInt(bitr.W))
   })
-  case class WIndex(idx:UInt, content:SInt) extends Bundle
-  val data=Reg(WIndex(0.U,SInt(bitw.W)))
 
-  io.out:=data.idx
-  def reduce(in:IndexedSeq[WIndex]):WIndex={
+  val idxReg=Reg(UInt(bitr.W))
+  val dataReg=Reg(SInt(bitw.W))
+
+  io.out:=idxReg
+  def reduce(in:IndexedSeq[(UInt, SInt)]):(UInt, SInt)={
     if(in.length==1)in(0)
     else {
       assert(in.length % 2 == 0)
-      reduce((0 until in.length by 2).map {
-        i => Mux(in(i).content > in(i + 1).content, in(i), in(i + 1))
+      reduce((0 until in.length by 2).map { i =>
+        val cmp = in(i)._2 > in(i + 1)._2
+        (Mux(cmp, in(i)._1, in(i + 1)._1), Mux(cmp, in(i)._2, in(i + 1)._2))
       })
     }
   }
-  val m=reduce(io.in.zipWithIndex.map{case (x, idx)=>WIndex(idx.U+io.offset, x)})
+  val m=reduce(io.in.zipWithIndex.map{case (x, i)=>(i.U+io.offset,x)})
+
+  val cmp2=dataReg > m._2
+
   when(io.en) {
     when(!(io.reset)) {
-      data := Mux(data.content > m.content, data, m)
+      dataReg := Mux(cmp2, dataReg, m._2)
+      idxReg :=Mux(cmp2, idxReg, m._1)
     } otherwise {
-      data:=m
+      dataReg := m._2
+      idxReg:=m._1
     }
   }
 }

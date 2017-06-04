@@ -18,9 +18,10 @@ class BitSumModule extends Module{
   * Created by wanga on 2017/5/31.
   */
 class BitSumTest(bs:BitSumModule) extends PeekPokeTester(bs) {
-  val data=(0 until 32).map{_=>Random.nextBoolean()}
-  val result=data map {if(_)1 else -1} sum
+  val data=(0 until 32).map{_=>if(Random.nextBoolean())1 else 0}
+  val result=data.map(_*2-1).sum
+  val v=(31 to 0 by -1).foldLeft(BigInt(0)){case (acc, v)=>acc*2+data(v)}
   for(i<-0 until 32)
-    poke(bs.io.in(i), data(i))
+    poke(bs.io.in, v)
   expect(bs.io.out, result)
 }

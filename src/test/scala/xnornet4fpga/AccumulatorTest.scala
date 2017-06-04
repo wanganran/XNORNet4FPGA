@@ -10,6 +10,7 @@ class AccumulatorTest(acc:Accumulator) extends PeekPokeTester(acc) {
   poke(acc.io.en, true)
   poke(acc.io.reset, true)
   poke(acc.io.sel, 0)
+  poke(acc.io.in, 0)
   step(1)
   expect(acc.io.out, 0)
 

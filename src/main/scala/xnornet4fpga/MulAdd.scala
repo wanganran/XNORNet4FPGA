@@ -10,7 +10,7 @@ class MulAdd(inBitw:Int, outBitw:Int) extends Module{
   def io=IO(new Bundle{
     val a=Input(SInt(inBitw.W))
     val b=Input(SInt(inBitw.W))
-    val m=Input(SInt(inBitw.W))
+    val m=Input(SInt(outBitw.W))
     val c=Input(SInt(inBitw.W))
     val r=Output(SInt(outBitw.W))
   })
