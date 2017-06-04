@@ -7,10 +7,10 @@ import chisel3.util._
   * Created by wanganran on 5/28/17.
   */
 class MulAdd(inBitw:Int, outBitw:Int) extends Module{
-  def io=IO(new Bundle{
+  val io=IO(new Bundle{
     val a=Input(SInt(inBitw.W))
     val b=Input(SInt(inBitw.W))
-    val m=Input(SInt(outBitw.W))
+    val m=Input(UInt(outBitw.W))
     val c=Input(SInt(inBitw.W))
     val r=Output(SInt(outBitw.W))
   })

@@ -18,10 +18,11 @@ object XNORNetInference{
 /**
   * Created by wanganran on 5/28/17.
   */
-class XNORNetInference(hardwareConfig: HardwareConfig, mem:AggregateMem
-                      ) extends Module {
+class XNORNetInference(hardwareConfig: HardwareConfig) extends Module {
+  def maxPower2(x:Int)=(1<<log2Floor(x))
+  val mem=Module(new AggregateMem(hardwareConfig, maxPower2(hardwareConfig.memLineWidth)))
   val maxAccWidth=hardwareConfig.maxFeatures/hardwareConfig.XNORFanout //max # rounds of computations
-  val bnCnt=hardwareConfig.memLineWidth/(hardwareConfig.bnParamWidth*2) //# of bn param pairs loaded each clock
+  val bnCnt=mem.lineWidth/(hardwareConfig.bnParamWidth*2) //# of bn param pairs loaded each clock
   val bnFanout=hardwareConfig.XNORFanout/bnCnt //TODO:now only support 1
 
   val io=IO(new Bundle{
@@ -31,6 +32,11 @@ class XNORNetInference(hardwareConfig: HardwareConfig, mem:AggregateMem
     val inputBufferPush=Input(Bool())
     val inputBufferPop=Input(Bool())
     val memSel=Input(Bool())
+    val memAddr=Input(UInt(mem.addrWidth.W))
+    val memOut=Output(Bits(mem.lineWidth.W))
+    val memRen=Input(Bool())
+    val memWen=Input(Bool())
+    val memIn=Input(Bits(mem.lineWidth.W))
     val accEn=Input(Bool())
     val accSel=Input(UInt(log2Ceil(maxAccWidth).W))
     val accReset=Input(Bool())
@@ -43,6 +49,12 @@ class XNORNetInference(hardwareConfig: HardwareConfig, mem:AggregateMem
 
     val result=Output(UInt(hardwareConfig.resultWidth.W))
   })
+
+  mem.io.addr:=io.memAddr
+  io.memOut:=mem.io.out
+  mem.io.ren:=io.memRen
+  mem.io.wen:=io.memWen
+  mem.io.in:=io.memIn
 
   val inputWire=Wire(Bits(hardwareConfig.XNORFanout.W)) //connected by the output signs
 
@@ -63,9 +75,9 @@ class XNORNetInference(hardwareConfig: HardwareConfig, mem:AggregateMem
 
   xnor.io.in2:=Mux(
     io.memSel,
-    memOut,
-    0.U(hardwareConfig.memLineWidth.W)
-  )(hardwareConfig.memLineWidth-1-hardwareConfig.spareBandwidth, 0) //remove unused bits
+    memOut.asTypeOf(Vec(hardwareConfig.XNORFanout, UInt(hardwareConfig.XNORBitWidth.W))),
+    Vec(Seq.fill(hardwareConfig.XNORFanout){0.U(hardwareConfig.XNORBitWidth.W)})
+  )
 
   val meanBuffer=Module(new MeanBuffer(
     hardwareConfig.opWidth,
@@ -113,8 +125,8 @@ class XNORNetInference(hardwareConfig: HardwareConfig, mem:AggregateMem
         0.U((hardwareConfig.bnParamWidth*2).W),
         memOut(offset - 1, offset - hardwareConfig.bnParamWidth * 2)
       )
-      mulAdd.io.a := bnPair(hardwareConfig.bnParamWidth * 2 - 1, hardwareConfig.bnParamWidth)
-      mulAdd.io.c := bnPair(hardwareConfig.bnParamWidth - 1, 0)
+      mulAdd.io.a := bnPair(hardwareConfig.bnParamWidth * 2 - 1, hardwareConfig.bnParamWidth).asSInt()
+      mulAdd.io.c := bnPair(hardwareConfig.bnParamWidth - 1, 0).asSInt()
     }
     else if(bnCnt<hardwareConfig.XNORFanout){
       //TODO

@@ -49,7 +49,7 @@ import chisel3.util._
   *
   */
 class IglooScheduler(hwConfig: HardwareConfig, topo:NNTopology) extends Module {
-  def io = IO(new Bundle {
+  val io = IO(new Bundle {
     val en = Input(Bool())
     val inputOffset = Input(UInt(hwConfig.memAddrWidth.W))
     val memOffset = Input(UInt(hwConfig.memAddrWidth.W))
@@ -59,7 +59,6 @@ class IglooScheduler(hwConfig: HardwareConfig, topo:NNTopology) extends Module {
 
   //round k
   def round(x: Int, k: Int) = (x - 1) / k * k + k
-  def maxPower2(x:Int)=(1<<log2Floor(x))
 
   //auto symbol->state
   var symbols = Array[Symbol]()
@@ -73,13 +72,15 @@ class IglooScheduler(hwConfig: HardwareConfig, topo:NNTopology) extends Module {
     }
   }
 
-  val mem = Module(new AggregateMem(hwConfig, maxPower2(hwConfig.memLineWidth)))
+  val hw = Module(new XNORNetInference(hwConfig))
+  //set mem: read only
+  set(hw.io.memRen)
+  unset(hw.io.memWen)
 
-  val hw = Module(new XNORNetInference(hwConfig, mem))
   //assign result
   io.result:=hw.io.result
 
-  val currentLayer = Reg(0.U(4.W))
+  val currentLayer = Reg(UInt(4.W))
   val currentFeatureCnt = MuxLookup(currentLayer, 0.U,
     (0 until topo.getTotalLayers()) map {
       i => i.U -> round(topo(i)._2, hwConfig.XNORFanout).U
@@ -109,10 +110,10 @@ class IglooScheduler(hwConfig: HardwareConfig, topo:NNTopology) extends Module {
   def unset(x:Bits){x:=false.B}
 
   val inputSize=topo.getParameterSizeType(0).map{case (s, _)=>s}.sum
-  val x=inputSize/mem.lineWidth
+  val x=inputSize/hw.mem.lineWidth
 
-  val inputBuffer = mem.io.out(mem.lineWidth - 1, 0).asTypeOf(
-    Vec(mem.lineWidth/hwConfig.XNORFanout,Bits(hwConfig.XNORFanout.W)))
+  val inputBuffer = hw.io.memOut(hw.mem.lineWidth - 1, 0).asTypeOf(
+    Vec(hw.mem.lineWidth/hwConfig.XNORFanout,Bits(hwConfig.XNORFanout.W)))
 
   val maxOffsetReg=Reg(UInt(hwConfig.resultWidth.W))
   hw.io.maxOffset:=maxOffsetReg
@@ -121,7 +122,7 @@ class IglooScheduler(hwConfig: HardwareConfig, topo:NNTopology) extends Module {
     when(IS('init)) {
       hw.io.memSel := XNORNetInference.MEMSEL_XNOR
       hw.io.inputSel := XNORNetInference.INPUTSEL_INPUT
-      mem.io.addr := io.inputOffset
+      hw.io.memAddr := io.inputOffset
       currentLayer:=0.U
       //assume MLP
       SS('wait)
@@ -134,13 +135,13 @@ class IglooScheduler(hwConfig: HardwareConfig, topo:NNTopology) extends Module {
       set(hw.io.inputBufferPush)
       unset(hw.io.inputBufferPop)
 
-      val inputBufferLen = mem.lineWidth / hwConfig.XNORFanout
+      val inputBufferLen = hw.mem.lineWidth / hwConfig.XNORFanout
       when(substate < (inputBufferLen - 1).U) {
         hw.io.input := inputBuffer((inputBufferLen - 1).U - substate)
         SS()
       }.elsewhen(substate === (inputBufferLen - 1).U) {
         hw.io.input := inputBuffer((inputBufferLen - 1).U - substate)
-        mem.io.addr := io.memOffset
+        hw.io.memAddr := io.memOffset
         SS('xnorPrepare)
       }
     }
@@ -153,7 +154,7 @@ class IglooScheduler(hwConfig: HardwareConfig, topo:NNTopology) extends Module {
       set(hw.io.accReset)
       hw.io.accSel := 0.U
       //pre-update mem addr
-      mem.io.addr:=io.memOffset+1.U
+      hw.io.memAddr:=io.memOffset+1.U
       SS('xnor)
       //next tick it will do the XNOR
     }
@@ -163,7 +164,7 @@ class IglooScheduler(hwConfig: HardwareConfig, topo:NNTopology) extends Module {
       //select next acc
       hw.io.accSel:=(substate+1.U)%accWidth
       //always switch weight
-      mem.io.addr:=io.memOffset+substate+2.U
+      hw.io.memAddr:=io.memOffset+substate+2.U
       when(substate<currentTotalRound-1.U){
         // every step but last
         SS()
@@ -215,7 +216,7 @@ class IglooScheduler(hwConfig: HardwareConfig, topo:NNTopology) extends Module {
       //select next acc
       hw.io.accSel:=substate+1.U
       //continue read next mem
-      mem.io.addr:=io.memOffset+substate+currentTotalRound+2.U
+      hw.io.memAddr:=io.memOffset+substate+currentTotalRound+2.U
       //unset clear
       unset(hw.io.maxClear)
       //add max offset

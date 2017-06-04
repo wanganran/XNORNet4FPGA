@@ -9,9 +9,9 @@ import chisel3.util._
 class MeanBuffer(bitw:Int, n:Int) extends Module {
   val io = IO(new Bundle {
     val in = Input(Vec(n, SInt(bitw.W)))
-    val cntInverse65536 = Input(SInt(16.W))
+    val cntInverse65536 = Input(UInt(16.W))
     val reset = Input(Bool())
-    val out = Output(SInt(bitw.W))
+    val out = Output(UInt(bitw.W))
   })
 
   def abs(x: SInt) = Mux(x > 0.S, x, 0.S - x).asUInt()
