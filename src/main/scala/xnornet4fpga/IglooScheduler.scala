@@ -49,6 +49,7 @@ import chisel3.util._
   *
   */
 class IglooScheduler(hwConfig: HardwareConfig, topo:NNTopology) extends Module {
+  val TEST=true
   val io = IO(new Bundle {
     val en = Input(Bool())
     val inputOffset = Input(UInt(hwConfig.memAddrWidth.W))
@@ -56,10 +57,15 @@ class IglooScheduler(hwConfig: HardwareConfig, topo:NNTopology) extends Module {
     val finished = Output(Bool())
     val result = Output(UInt(hwConfig.resultWidth.W))
 
-    //for test
+
+
+    //for input mem
     val memWen=Input(Bool())
     val memWAddr=Input(UInt(hwConfig.memAddrWidth.W))
-    val memIn=Input(UInt(16.W)) //TODO: parameterize
+    val memIn=Input(UInt(128.W)) //TODO: parameterize
+
+    //for test
+    val state=Output(UInt(16.W))
   })
 
   //=== UTILITY ===
@@ -96,6 +102,7 @@ class IglooScheduler(hwConfig: HardwareConfig, topo:NNTopology) extends Module {
   //state
   val state=RegInit(S('init))
   val substate=RegInit(0.U(16.W))
+  if(TEST)io.state:=state
 
   def IS(x:Symbol, i:Int)=state===S(x) && substate===i.U
   def IS(x:Symbol)=state===S(x)
@@ -120,6 +127,8 @@ class IglooScheduler(hwConfig: HardwareConfig, topo:NNTopology) extends Module {
   //next acc is always related to substate
   val acc=substate%layerParams.io.currentAccWidth
   hw.io.accSel:=acc
+
+  io.finished:=IS('finished)
 
   //=== STATE MACHINE ===
 
@@ -222,7 +231,6 @@ class IglooScheduler(hwConfig: HardwareConfig, topo:NNTopology) extends Module {
         //last tick,
         //if last layer return result
         when(layerParams.io.lastLayer) {
-          set(io.finished)
           //stop max
           unset(hw.io.maxEn)
           SS('finished)

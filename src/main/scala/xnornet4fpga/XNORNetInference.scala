@@ -153,7 +153,7 @@ class XNORNetInference(hardwareConfig: HardwareConfig) extends Module {
     mulAdd.io.b:=acc.io.out
     meanBuffer.io.in(i):=mulAdd.io.r
     maxModule.io.in(i):=mulAdd.io.r
-    mulAdd.io.r(31)
+    ~(mulAdd.io.r(31))
   }
 
 

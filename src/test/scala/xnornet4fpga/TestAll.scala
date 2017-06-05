@@ -23,4 +23,7 @@ object TestAll extends App {
   test(new MeanBuffer(32, 4))(new MeanBufferTest(_, 4))
   test(new XNOR(32, 4))(new XNORTest(hwConfig, _))
   test(new MemTestModule(hwConfig, 16))(new MemTest(_))
+
+  val topo=SimpleMLP(256,10,96)
+  test(new IglooScheduler(hwConfig, topo))(new InferenceTest(_, topo, hwConfig))
 }

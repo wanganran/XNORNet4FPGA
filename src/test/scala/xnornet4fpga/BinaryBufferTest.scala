@@ -11,7 +11,7 @@ class BinaryBufferTest(bb:BinaryBuffer, hwConfig:HardwareConfig) extends PeekPok
   val gc=(0 until hwConfig.maxInputWidth) map {_=>if(Random.nextBoolean()) 1 else 0}
 
   //test fast in
-  val fastingc=(BigInt(Random.nextLong())<<64)+BigInt(Random.nextLong)
+  val fastingc=(BigInt(Math.abs(Random.nextLong()))<<64)+BigInt(Math.abs(Random.nextLong()))
 
   poke(bb.io.reset, true)
   poke(bb.io.push, false)
@@ -20,6 +20,7 @@ class BinaryBufferTest(bb:BinaryBuffer, hwConfig:HardwareConfig) extends PeekPok
   poke(bb.io.reset, false)
 
   poke(bb.io.fastpush, true)
+  print(fastingc)
   poke(bb.io.fastin, fastingc)
 
   step(1)
