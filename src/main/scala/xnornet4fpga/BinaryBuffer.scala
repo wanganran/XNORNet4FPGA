@@ -6,11 +6,13 @@ import chisel3.util._
 /**
   * Created by wanganran on 5/28/17.
   */
-class BinaryBuffer(totalWidth:Int, rWidth:Int, wWidth:Int) extends Module{
+class BinaryBuffer(totalWidth:Int, rWidth:Int, fastwWidth:Int, wWidth:Int) extends Module{
   val io=IO(new Bundle{
     val reset=Input(Bool())
     val in=Input(Bits(wWidth.W))
+    val fastin=Input(Bits(fastwWidth.W))
     val push=Input(Bool())
+    val fastpush=Input(Bool())
     val out=Output(Bits(rWidth.W))
     val pop=Input(Bool())
   })
@@ -27,26 +29,32 @@ class BinaryBuffer(totalWidth:Int, rWidth:Int, wWidth:Int) extends Module{
   val mem=Reg(Vec(wCnt, Bits(wWidth.W)))
   val catMem=Vec((0 until wCnt by wPerR) map {i=>Cat((0 until wPerR) map {j=>mem(i+j)})})
 
-  when(io.push){
-    when(!(io.reset)) {
-      mem(wPos) := io.in
-      wPos := wPos + 1.U
-    } otherwise {
-      mem(0):=io.in
-      wPos:=1.U
-      rPos:=0.U
+  when(io.fastpush && !(io.reset)){
+    for(i<-0 until fastwWidth/wWidth){
+      mem(wPos+i.U):=io.fastin(fastwWidth-1-i*wWidth, fastwWidth-(i+1)*wWidth)
+    }
+    wPos:=wPos+(fastwWidth/wWidth).U
+  } otherwise {
+    when(io.push) {
+      when(!(io.reset)) {
+        mem(wPos) := io.in
+        wPos := wPos + 1.U
+      } otherwise {
+        mem(0) := io.in
+        wPos := 1.U
+        rPos := 0.U
+      }
+    }
+
+    when(io.pop) {
+      when(!(io.reset)) {
+        rPos := rPos + 1.U
+      } otherwise {
+        rPos := 1.U
+        wPos := 0.U
+      }
     }
   }
-
-  when(io.pop){
-    when(!(io.reset)) {
-      rPos := rPos + 1.U
-    } otherwise{
-      rPos:=1.U
-      wPos:=0.U
-    }
-  }
-
   when(io.reset && !(io.pop) && !(io.push)){
     wPos:=0.U
     rPos:=0.U

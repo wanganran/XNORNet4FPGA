@@ -59,13 +59,12 @@ class IglooScheduler(hwConfig: HardwareConfig, topo:NNTopology) extends Module {
     //for test
     val memWen=Input(Bool())
     val memWAddr=Input(UInt(hwConfig.memAddrWidth.W))
-    val memIn=Input(UInt(hw.mem.lineWidth.W))
+    val memIn=Input(UInt(16.W)) //TODO: parameterize
   })
 
   //=== UTILITY ===
 
   //round k
-  def round(x: Int, k: Int) = (x - 1) / k * k + k
 
   //auto symbol->state
   var symbols = Array[Symbol]()
@@ -83,7 +82,6 @@ class IglooScheduler(hwConfig: HardwareConfig, topo:NNTopology) extends Module {
 
   val hw = Module(new XNORNetInference(hwConfig))
 
-  set(hw.io.memRen)
   hw.io.memWen:=io.memWen
   hw.io.memIn:=io.memIn
   hw.io.memWAddr:=io.memWAddr
@@ -91,24 +89,9 @@ class IglooScheduler(hwConfig: HardwareConfig, topo:NNTopology) extends Module {
   //assign result
   io.result:=hw.io.result
 
-  val currentLayer = Reg(UInt(4.W))
-  val currentFeatureCnt = MuxLookup(currentLayer, 0.U,
-    (0 until topo.getTotalLayers()) map {
-      i => i.U -> round(topo(i)._2, hwConfig.XNORFanout).U
-    })
-  //how many weight shift does each input take
-  val accWidth = currentFeatureCnt / hwConfig.XNORFanout.U
-  //how many input shift does current layer take
-  val inputRound = MuxLookup(currentLayer, 0.U,
-    (0 until topo.getTotalLayers()) map {
-      i => i.U -> (round(topo(i)._1, hwConfig.XNORBitWidth)/hwConfig.XNORBitWidth).U
-    })
-  //total ticks current layer take
-  val currentTotalRound=accWidth*inputRound
+  val layerParams=Module(new LayerParamShifter(hwConfig, topo))
 
-  //if last round, turn on max
-  val lastLayer=Mux(currentLayer===(topo.getTotalLayers()-1).U, true.B, false.B)
-  hw.io.maxEn:=lastLayer
+  hw.io.maxEn:=layerParams.io.lastLayer
 
   //state
   val state=RegInit(S('init))
@@ -125,100 +108,120 @@ class IglooScheduler(hwConfig: HardwareConfig, topo:NNTopology) extends Module {
   def unset(x:Bits){x:=false.B}
 
   //split input into XNORFanout
-  val inputBuffer = hw.io.memOut(hw.mem.lineWidth - 1, 0).asTypeOf(
-    Vec(hw.mem.lineWidth/hwConfig.XNORFanout,Bits(hwConfig.XNORFanout.W)))
+  val inputBuffer = hw.io.memOut
 
   //max offset to the max module
   val maxOffsetReg=Reg(UInt(hwConfig.resultWidth.W))
   hw.io.maxOffset:=maxOffsetReg
 
+  //mem offset reg
+  val memOffset=Reg(UInt(hwConfig.memAddrWidth.W))
+
+  //next acc is always related to substate
+  val acc=substate%layerParams.io.currentAccWidth
+  hw.io.accSel:=acc
+
   //=== STATE MACHINE ===
 
   when(io.en) {
-    val initialInputRound = hw.mem.lineWidth / hwConfig.XNORFanout
+    val initialInputRound =topo(0)._1/hw.mem.lineWidth
     when(IS('init)) {
-      hw.io.memSel := XNORNetInference.MEMSEL_XNOR
-      hw.io.inputSel := XNORNetInference.INPUTSEL_INPUT
       hw.io.memAddr := io.inputOffset
+
+      memOffset:=io.memOffset
 
       unset(hw.io.inputBufferPush)
       unset(hw.io.inputBufferPop)
       set(hw.io.inputBufferReset)
-      hw.io.input:=inputBuffer((initialInputRound-1).U)
+      hw.io.input:=inputBuffer
 
-      currentLayer:=0.U
       //assume MLP
       SS('waitMem)
     }
     when(IS('waitMem)){
       //next tick push input
-      set(hw.io.inputBufferPush)
+      unset(hw.io.inputBufferReset)
+      set(hw.io.inputPush)
+      hw.io.memAddr:=(io.inputOffset+1.U)
       SS('readInput)
     }
     when(IS('readInput)) {
-      unset(hw.io.inputBufferReset)
-      //inputBuffer ready
-      set(hw.io.inputBufferPush)
-      unset(hw.io.inputBufferPop)
+      //first inputBuffer ready
 
       when(substate < (initialInputRound - 2).U) {
         //set next input
-        hw.io.input := inputBuffer((initialInputRound - 2).U - substate)
+        hw.io.memAddr:=(io.inputOffset+2.U+substate)
         SS()
       }.elsewhen(substate === (initialInputRound - 2).U) {
-        hw.io.input := inputBuffer((initialInputRound - 2).U - substate)
         hw.io.memAddr := io.memOffset
         SS('xnorPrepare)
       }
     }
     when(IS('xnorPrepare)) {
+      //unset fastpush
+      unset(hw.io.inputPush)
       //prepare for layer 1
-      unset(hw.io.inputBufferPush)
-      hw.io.inputSel := XNORNetInference.INPUTSEL_FEEDBACK
       set(hw.io.accEn)
       //next tick it will reset to the input
       set(hw.io.accReset)
       hw.io.accSel := 0.U
       //pre-update mem addr
-      hw.io.memAddr:=io.memOffset+1.U
+      hw.io.memAddr:=memOffset //TODO: remove this
+      memOffset:=memOffset+1.U
       SS('xnor)
       //next tick it will do the XNOR
     }
     when(IS('xnor)){
       //this time: input and weight are ready, acc enabled,
-      // acc result is going to be ready
-      //select next acc
-      hw.io.accSel:=(substate+1.U)%accWidth
+      //stop shift layer
+      unset(layerParams.io.shift)
+      //stop reset acc
+      unset(hw.io.accReset)
+      //stop update last mean
+      unset(hw.io.meanUpdate)
       //always switch weight
-      hw.io.memAddr:=io.memOffset+substate+2.U
-      when(substate<currentTotalRound-1.U){
+      memOffset:=memOffset+1.U
+
+      when(acc===layerParams.io.currentAccWidth-2.U){
+        //switch input
+        set(hw.io.inputBufferPop)
+      }.elsewhen(acc===layerParams.io.currentAccWidth-1.U){
+        unset(hw.io.inputBufferPop)
+      }
+
+      when(substate<layerParams.io.currentTotalRound-1.U){
         // every step but last
         SS()
-      }.elsewhen(substate===currentTotalRound-1.U){
+      }.elsewhen(substate===layerParams.io.currentTotalRound-1.U){
         //update to BN
-        hw.io.memSel:=XNORNetInference.MEMSEL_BN
         //next tick bn result should be ready, push result back to buffer
         set(hw.io.inputBufferPush)
         SS('bn)
         //clear max
         set(hw.io.maxReset)
+        //clear mean
+        set(hw.io.meanReset)
+
         //set max offset
         maxOffsetReg:=0.U
         //stop acc
         unset(hw.io.accEn)
       }
-      when(substate%accWidth===accWidth-2.U){
-        //switch input
-        set(hw.io.inputBufferPop)
-      }.elsewhen(substate%accWidth===accWidth-1.U){
-        unset(hw.io.inputBufferPop)
-      }
     }
     when(IS('bn)){
-      when(substate===accWidth-1.U){
+      //this time: bn mem is ready, result is ready, pushing
+      //continue read next mem
+      memOffset:=memOffset+1.U
+      //unset clear
+      unset(hw.io.maxReset)
+      unset(hw.io.meanReset)
+      //add max offset
+      maxOffsetReg:=maxOffsetReg+hwConfig.XNORFanout.U
+      SS()
+      when(substate===layerParams.io.currentAccWidth -1.U){
         //last tick,
         //if last layer return result
-        when(lastLayer) {
+        when(layerParams.io.lastLayer) {
           set(io.finished)
           //stop max
           unset(hw.io.maxEn)
@@ -226,28 +229,19 @@ class IglooScheduler(hwConfig: HardwareConfig, topo:NNTopology) extends Module {
         } otherwise{
           //start a new XNOR
           //add layer
-          currentLayer:=currentLayer+1.U
+          set(layerParams.io.shift)
+          //update mean
+          set(hw.io.meanUpdate)
+
           //not push data any more
           unset(hw.io.inputBufferPush)
           //reset acc values
           set(hw.io.accReset)
           //re-enable acc
           set(hw.io.accEn)
-          //set accSel back to 0
-          hw.io.accSel := 0.U
           SS('xnor)
         }
       }
-      //this time: bn mem is ready, result is ready, pushing
-      //select next acc
-      hw.io.accSel:=substate+1.U
-      //continue read next mem
-      hw.io.memAddr:=io.memOffset+substate+currentTotalRound+2.U
-      //unset clear
-      unset(hw.io.maxReset)
-      //add max offset
-      maxOffsetReg:=maxOffsetReg+hwConfig.XNORFanout.U
-      SS()
     }
   }
 }

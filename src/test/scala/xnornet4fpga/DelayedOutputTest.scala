@@ -9,6 +9,7 @@ import scala.util.Random
   */
 class DelayedOutputTest(d:DelayedOutput, default:Int) extends PeekPokeTester(d) {
   poke(d.io.reset, true)
+  poke(d.io.update, false)
   step(1)
   expect(d.io.output, default)
 

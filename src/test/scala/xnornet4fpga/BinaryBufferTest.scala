@@ -10,16 +10,40 @@ import scala.util.Random
 class BinaryBufferTest(bb:BinaryBuffer, hwConfig:HardwareConfig) extends PeekPokeTester(bb){
   val gc=(0 until hwConfig.maxInputWidth) map {_=>if(Random.nextBoolean()) 1 else 0}
 
+  //test fast in
+  val fastingc=(BigInt(Random.nextLong())<<64)+BigInt(Random.nextLong)
 
+  poke(bb.io.reset, true)
+  poke(bb.io.push, false)
+  poke(bb.io.pop, false)
+  step(1)
+  poke(bb.io.reset, false)
+
+  poke(bb.io.fastpush, true)
+  poke(bb.io.fastin, fastingc)
+
+  step(1)
+  poke(bb.io.fastpush, false)
+  poke(bb.io.pop, true)
+  poke(bb.io.push, false)
+
+  for(i<-0 until 4) {
+    expect(bb.io.out, (fastingc>>(32*(3-i)))&((BigInt(1)<<32)-1))
+    step(1)
+  }
+  poke(bb.io.pop, false)
+
+  poke(bb.io.reset, true)
   for(t<-0 until hwConfig.maxInputWidth/hwConfig.XNORFanout) {
     var t0=0
     for (i <- 0 until hwConfig.XNORFanout)
       t0=t0*2+gc(i+t*hwConfig.XNORFanout)
     poke(bb.io.in, t0)
+    poke(bb.io.pop, false)
     poke(bb.io.push, true)
-    if(t==0) poke(bb.io.reset, true)
-    else poke(bb.io.reset, false)
     step(1)
+
+    poke(bb.io.reset, false)
   }
 
   var r=BigInt(0)
