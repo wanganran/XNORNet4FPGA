@@ -9,26 +9,26 @@ class LayerParamShifter(hwConfig:HardwareConfig, topo:NNTopology) extends Module
   def round(x: Int, k: Int) = (x - 1) / k * k + k
 
   val currentLayer = RegInit(0.U(4.W))
-  val featureCnts = Vec((0 until topo.getTotalLayers()) map {
-    i => (round(topo(i)._2, hwConfig.XNORFanout)).U(16.W)
-  } map {RegInit(_)})
-  val featureCnts65536 = Vec((0 until topo.getTotalLayers()) map {
+  val featureCnts = (0 until topo.getTotalLayers()) map {
+    i => round(topo(i)._2, hwConfig.XNORFanout).U(16.W)
+  } map {RegInit(_)}
+  val featureCnts65536 = (0 until topo.getTotalLayers()) map {
     i => (65536 / round(topo(i)._2, hwConfig.XNORFanout)).U(16.W)
-  } map {RegInit(_)})
-  val accWidth = Vec((0 until topo.getTotalLayers()) map {
+  } map {RegInit(_)}
+  val accWidth = (0 until topo.getTotalLayers()) map {
     i => (round(topo(i)._2, hwConfig.XNORFanout) / hwConfig.XNORFanout).U(16.W)
-  } map {RegInit(_)})
+  } map {RegInit(_)}
   //how many input shift does current layer take
-  val inputRound = Vec((0 until topo.getTotalLayers()) map {
+  val inputRound = (0 until topo.getTotalLayers()) map {
     i => (round(topo(i)._1, hwConfig.XNORBitWidth) / hwConfig.XNORBitWidth).U(16.W)
-  } map {RegInit(_)})
+  } map {RegInit(_)}
   //total ticks current layer take
-  val totalRound = Vec((0 until topo.getTotalLayers()) map {
+  val totalRound = (0 until topo.getTotalLayers()) map {
     i => ((round(topo(i)._1, hwConfig.XNORBitWidth) / hwConfig.XNORBitWidth) *
       (round(topo(i)._2, hwConfig.XNORFanout) / hwConfig.XNORFanout)).U(16.W)
-  } map {RegInit(_)})
+  } map {RegInit(_)}
 
-  val memoryOffset=Vec((0 until topo.getTotalLayers()).map { i=>
+  val memoryOffset=(0 until topo.getTotalLayers()).map { i=>
     val weight=
       round(topo(i)._1, hwConfig.XNORBitWidth)*
       round(topo(i)._2, hwConfig.XNORFanout)
@@ -40,7 +40,7 @@ class LayerParamShifter(hwConfig:HardwareConfig, topo:NNTopology) extends Module
   }.foldLeft(Seq[Int]()){case (seq, n)=>
     if(seq.isEmpty)seq:+n
     else seq:+(n+seq.last)
-  }.map(_.U(hwConfig.memAddrWidth.W)) map {RegInit(_)})
+  }.map(_.U(hwConfig.memAddrWidth.W)) map {RegInit(_)}
 
   val io = IO(new Bundle {
     val shift = Input(Bool())
