@@ -66,6 +66,7 @@ class IglooScheduler(hwConfig: HardwareConfig, topo:NNTopology) extends Module {
 
     //for test
     val state=Output(UInt(16.W))
+    val mean=Output(UInt(32.W))
   })
 
   //=== UTILITY ===
@@ -88,6 +89,31 @@ class IglooScheduler(hwConfig: HardwareConfig, topo:NNTopology) extends Module {
 
   val hw = Module(new XNORNetInference(hwConfig))
 
+  //set delay registers
+  val inputPushReg=RegInit(false.B)
+  val inputBufferPushReg=RegInit(false.B)
+  val inputBufferPopReg=RegInit(false.B)
+  val inputBufferResetReg=RegInit(false.B)
+  val accEnReg=RegInit(false.B)
+  val accResetReg=RegInit(false.B)
+  val maxEnReg=RegInit(false.B)
+  val maxResetReg=RegInit(false.B)
+  val meanResetReg=RegInit(false.B)
+  val meanUpdateReg=RegInit(false.B)
+  val meanBufferResetReg=RegInit(false.B)
+
+  hw.io.inputPush:=inputPushReg
+  hw.io.inputBufferPush:=inputBufferPushReg
+  hw.io.inputBufferPop:=inputBufferPopReg
+  hw.io.inputBufferReset:=inputBufferResetReg
+  hw.io.accEn:=accEnReg
+  hw.io.accReset:=accResetReg
+  hw.io.maxEn:=maxEnReg
+  hw.io.maxReset:=maxResetReg
+  hw.io.meanReset:=meanResetReg
+  hw.io.meanUpdate:=meanUpdateReg
+  hw.io.meanBufferReset:=meanBufferResetReg
+
   hw.io.memWen:=io.memWen
   hw.io.memIn:=io.memIn
   hw.io.memWAddr:=io.memWAddr
@@ -97,12 +123,15 @@ class IglooScheduler(hwConfig: HardwareConfig, topo:NNTopology) extends Module {
 
   val layerParams=Module(new LayerParamShifter(hwConfig, topo))
 
-  hw.io.maxEn:=layerParams.io.lastLayer
+  maxEnReg:=layerParams.io.lastLayer
+  hw.io.actualFeatureNum:=layerParams.io.actualFeatureCnt
+  hw.io.featureNumInverse65536:=layerParams.io.currentFeatureCnt65536
 
   //state
   val state=RegInit(S('init))
   val substate=RegInit(0.U(16.W))
-  if(TEST)io.state:=state
+  io.state:=state
+  io.mean:=hw.io.mean
 
   def IS(x:Symbol, i:Int)=state===S(x) && substate===i.U
   def IS(x:Symbol)=state===S(x)
@@ -115,7 +144,6 @@ class IglooScheduler(hwConfig: HardwareConfig, topo:NNTopology) extends Module {
   def unset(x:Bits){x:=false.B}
 
   //split input into XNORFanout
-  val inputBuffer = hw.io.memOut
 
   //max offset to the max module
   val maxOffsetReg=Reg(UInt(hwConfig.resultWidth.W))
@@ -123,6 +151,8 @@ class IglooScheduler(hwConfig: HardwareConfig, topo:NNTopology) extends Module {
 
   //mem offset reg
   val memOffset=Reg(UInt(hwConfig.memAddrWidth.W))
+  hw.io.memAddr := memOffset
+  hw.io.input:=hw.io.memOut
 
   //next acc is always related to substate
   val acc=substate%layerParams.io.currentAccWidth
@@ -132,51 +162,51 @@ class IglooScheduler(hwConfig: HardwareConfig, topo:NNTopology) extends Module {
 
   //=== STATE MACHINE ===
 
+  unset(layerParams.io.shift)
   when(io.en) {
     val initialInputRound =topo(0)._1/hw.mem.lineWidth
     when(IS('init)) {
-      hw.io.memAddr := io.inputOffset
+      memOffset:=io.inputOffset
 
-      memOffset:=io.memOffset
+      unset(inputBufferPushReg)
+      unset(inputBufferPopReg)
+      set(inputBufferResetReg)
 
-      unset(hw.io.inputBufferPush)
-      unset(hw.io.inputBufferPop)
-      set(hw.io.inputBufferReset)
-      hw.io.input:=inputBuffer
+      set(meanResetReg)
 
       //assume MLP
       SS('waitMem)
     }
     when(IS('waitMem)){
       //next tick push input
-      unset(hw.io.inputBufferReset)
-      set(hw.io.inputPush)
-      hw.io.memAddr:=(io.inputOffset+1.U)
+      unset(inputBufferResetReg)
+      set(inputPushReg)
+      unset(meanResetReg)
+      memOffset:=memOffset+1.U
       SS('readInput)
     }
     when(IS('readInput)) {
       //first inputBuffer ready
-
       when(substate < (initialInputRound - 2).U) {
         //set next input
-        hw.io.memAddr:=(io.inputOffset+2.U+substate)
+        memOffset:=memOffset+1.U
         SS()
       }.elsewhen(substate === (initialInputRound - 2).U) {
-        hw.io.memAddr := io.memOffset
+        memOffset := io.memOffset
         SS('xnorPrepare)
       }
     }
     when(IS('xnorPrepare)) {
       //unset fastpush
-      unset(hw.io.inputPush)
+      unset(inputPushReg)
       //prepare for layer 1
-      set(hw.io.accEn)
+      set(accEnReg)
       //next tick it will reset to the input
-      set(hw.io.accReset)
+      set(accResetReg)
       hw.io.accSel := 0.U
       //pre-update mem addr
-      hw.io.memAddr:=memOffset //TODO: remove this
       memOffset:=memOffset+1.U
+
       SS('xnor)
       //next tick it will do the XNOR
     }
@@ -185,45 +215,48 @@ class IglooScheduler(hwConfig: HardwareConfig, topo:NNTopology) extends Module {
       //stop shift layer
       unset(layerParams.io.shift)
       //stop reset acc
-      unset(hw.io.accReset)
+      unset(accResetReg)
       //stop update last mean
-      unset(hw.io.meanUpdate)
+      unset(meanUpdateReg)
       //always switch weight
       memOffset:=memOffset+1.U
 
       when(acc===layerParams.io.currentAccWidth-2.U){
         //switch input
-        set(hw.io.inputBufferPop)
+        set(inputBufferPopReg)
       }.elsewhen(acc===layerParams.io.currentAccWidth-1.U){
-        unset(hw.io.inputBufferPop)
+        unset(inputBufferPopReg)
       }
 
       when(substate<layerParams.io.currentTotalRound-1.U){
         // every step but last
         SS()
+        set(accEnReg)
+        unset(inputBufferPushReg)
       }.elsewhen(substate===layerParams.io.currentTotalRound-1.U){
         //update to BN
         //next tick bn result should be ready, push result back to buffer
-        set(hw.io.inputBufferPush)
+        set(inputBufferPushReg)
         SS('bn)
         //clear max
-        set(hw.io.maxReset)
+        set(maxResetReg)
         //clear mean
-        set(hw.io.meanReset)
+        set(meanBufferResetReg)
 
         //set max offset
         maxOffsetReg:=0.U
         //stop acc
-        unset(hw.io.accEn)
+        unset(accEnReg)
       }
     }
     when(IS('bn)){
+      printf("bn abmc: %d %d %d %d\n", hw.io.maa, hw.io.mab, hw.io.mam, hw.io.mac)
       //this time: bn mem is ready, result is ready, pushing
       //continue read next mem
       memOffset:=memOffset+1.U
       //unset clear
-      unset(hw.io.maxReset)
-      unset(hw.io.meanReset)
+      unset(maxResetReg)
+      unset(meanBufferResetReg)
       //add max offset
       maxOffsetReg:=maxOffsetReg+hwConfig.XNORFanout.U
       SS()
@@ -232,23 +265,26 @@ class IglooScheduler(hwConfig: HardwareConfig, topo:NNTopology) extends Module {
         //if last layer return result
         when(layerParams.io.lastLayer) {
           //stop max
-          unset(hw.io.maxEn)
+          unset(maxEnReg)
           SS('finished)
         } otherwise{
           //start a new XNOR
           //add layer
           set(layerParams.io.shift)
           //update mean
-          set(hw.io.meanUpdate)
+          set(meanUpdateReg)
 
           //not push data any more
-          unset(hw.io.inputBufferPush)
+          unset(inputBufferPushReg)
           //reset acc values
-          set(hw.io.accReset)
+          set(accResetReg)
           //re-enable acc
-          set(hw.io.accEn)
+          set(accEnReg)
           SS('xnor)
         }
+      } otherwise{
+        unset(accResetReg)
+        unset(accEnReg)
       }
     }
   }

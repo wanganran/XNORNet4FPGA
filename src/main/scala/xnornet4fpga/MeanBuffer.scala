@@ -17,12 +17,19 @@ class MeanBuffer(bitw:Int, n:Int) extends Module {
   def abs(x: SInt) = Mux(x > 0.S, x, 0.S - x).asUInt()
 
   val acc = Reg(UInt(bitw.W))
+  val result=Reg(UInt(bitw.W))
+  io.out:=result
 
   val absSum=ArraySum(n).generate(io.in map abs)
   when(!(io.reset)) {
+    for(i<-0 until 4)
+      printf("Mean "+i+" Update! %d %d %d\n", io.in(i), acc, io.cntInverse65536)
     acc := acc + absSum
+    result := ((acc+absSum) * io.cntInverse65536)>>16
   } otherwise {
+    for(i<-0 until 4)
+      printf("Mean "+i+" Reset! %d\n", io.in(i))
     acc := absSum
+    result := (absSum * io.cntInverse65536)>>16
   }
-  io.out := (acc * io.cntInverse65536)>>16
 }

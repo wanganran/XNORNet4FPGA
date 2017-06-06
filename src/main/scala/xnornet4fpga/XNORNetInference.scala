@@ -51,11 +51,22 @@ class XNORNetInference(hardwareConfig: HardwareConfig) extends Module {
     val maxEn=Input(Bool())
     val maxOffset=Input(UInt(hardwareConfig.resultWidth.W))
     val featureNumInverse65536=Input(UInt(16.W))
+    val actualFeatureNum=Input(UInt(16.W))
     //following two cannot be both set
     val meanReset=Input(Bool())
     val meanUpdate=Input(Bool())
+    val meanBufferReset=Input(Bool())
 
     val result=Output(UInt(hardwareConfig.resultWidth.W))
+
+    //for test
+    val mean=Output(UInt(32.W))
+    val xnorInput=Output(Bits(32.W))
+    val xnorWeight1=Output(Bits(32.W))
+    val maa=Output(SInt(16.W))
+    val mab=Output(SInt(16.W))
+    val mam=Output(UInt(32.W))
+    val mac=Output(SInt(16.W))
   })
 
   mem.io.addr:=io.memAddr
@@ -88,6 +99,9 @@ class XNORNetInference(hardwareConfig: HardwareConfig) extends Module {
   xnor.io.in2:=mem.io.out.asTypeOf(Vec(hardwareConfig.XNORFanout, UInt(hardwareConfig.XNORBitWidth.W)))
   //its output will be assigned later
 
+  io.xnorInput:=binaryBuffer.io.out
+  io.xnorWeight1:=mem.io.out(127,96)
+
   //Mean
 
   val meanBuffer=Module(new MeanBuffer(
@@ -102,6 +116,8 @@ class XNORNetInference(hardwareConfig: HardwareConfig) extends Module {
   mean.io.reset:=io.meanReset
   mean.io.input:=meanBuffer.io.out
 
+  io.mean:=mean.io.output
+
   //Max
 
   val maxModule=Module(new MaxBuffer(
@@ -111,6 +127,7 @@ class XNORNetInference(hardwareConfig: HardwareConfig) extends Module {
   maxModule.io.en:=io.maxEn
   maxModule.io.reset:=io.maxReset
   maxModule.io.offset:=io.maxOffset
+  maxModule.io.maxLen:=io.actualFeatureNum
   io.result:=maxModule.io.out
   //its input will be assigned later
 
@@ -122,7 +139,7 @@ class XNORNetInference(hardwareConfig: HardwareConfig) extends Module {
     acc.io.in := BitSum(
       hardwareConfig.XNORBitWidth,
       log2Ceil(hardwareConfig.XNORBitWidth)+1) //result will never exceeds XNOR bitwidth
-      .generate(xnor.io.out(i))
+      .generate(xnor.io.out(hardwareConfig.XNORFanout-i-1))
     acc.io.sel := io.accSel
     acc.io.reset := io.accReset
     acc.io.en:=io.accEn
@@ -151,6 +168,16 @@ class XNORNetInference(hardwareConfig: HardwareConfig) extends Module {
     }
     mulAdd.io.m:=mean.io.output
     mulAdd.io.b:=acc.io.out
+
+    if(i==0){
+      val offset = (bnCnt - i) * hardwareConfig.bnParamWidth * 2
+      val bnPair = mem.io.out(offset - 1, offset - hardwareConfig.bnParamWidth * 2)
+      io.maa := bnPair(hardwareConfig.bnParamWidth * 2 - 1, hardwareConfig.bnParamWidth).asSInt()
+      io.mac := bnPair(hardwareConfig.bnParamWidth - 1, 0).asSInt()
+      io.mab:=acc.io.out
+      io.mam:=mean.io.output
+    }
+
     meanBuffer.io.in(i):=mulAdd.io.r
     maxModule.io.in(i):=mulAdd.io.r
     ~(mulAdd.io.r(31))
@@ -159,6 +186,6 @@ class XNORNetInference(hardwareConfig: HardwareConfig) extends Module {
 
   inputWire:=Cat(signs)
 
-  meanBuffer.io.reset:=io.meanUpdate
+  meanBuffer.io.reset:=io.meanBufferReset
   meanBuffer.io.cntInverse65536:=io.featureNumInverse65536
 }

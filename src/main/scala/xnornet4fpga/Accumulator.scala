@@ -21,12 +21,14 @@ class Accumulator(bitw:Int, n:Int) extends Module {
   val acc = accumulator(io.sel)
 
   when(io.en && !(io.reset)) {
+    printf("Acc Update! %d, %d, %d\n", io.in, acc, io.sel)
     acc := acc + io.in
   }
 
   io.out := acc
 
   when(io.en && io.reset){
+    printf("Acc Reset! %d @ %d\n", io.in, io.sel)
     for(i<-0 until n)
       accumulator(i):=Mux(i.U===io.sel, io.in, 0.S)
   }

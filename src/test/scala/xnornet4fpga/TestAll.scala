@@ -15,6 +15,7 @@ object TestAll extends App {
   val hwConfig = HardwareConfig.default
 
   //test
+
   test(new Accumulator(32, 4))(new AccumulatorTest(_))
   test(new BinaryBuffer(256, 32, 128, 4))(new BinaryBufferTest(_, hwConfig))
   test(new BitSumModule())(new BitSumTest(_))

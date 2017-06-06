@@ -39,8 +39,10 @@ class InferenceTest(scheduler: IglooScheduler, topo:NNTopology, hwConfig:Hardwar
 
   def calculate(in:Seq[Int], w:Seq[Array[Array[Int]]])={
     def xnor(a:Seq[Int], b:Array[Array[Int]])={
-      def xnor(a:Seq[Int], b:Seq[Int])=a.zip(b).map { case (i,j)=>1-(i^j)}.sum
+      def xnor(a:Seq[Int], b:Seq[Int])=a.zip(b).map { case (i,j)=>1-(i^j)*2}.sum
       for(i<-0 until b.length)yield{
+
+        println("xnor gt: "+xnor(a,b(i)).toString)
         xnor(a,b(i))
       }
     }
@@ -48,10 +50,13 @@ class InferenceTest(scheduler: IglooScheduler, topo:NNTopology, hwConfig:Hardwar
       val t=(a zip b) map {
         case (i, Array(j,k))=>i*j*s+k
       }
+      t.foreach(x=>println("bn res: "+x))
+      for(i<-0 until t.length by 4)
+        println("bn gt: "+a(i)+","+b(i)(0)+","+s+","+b(i)(1))
       (t map {x=>if(x>=0) 1 else 0}, (t.map(Math.abs).sum)/t.length, t.zipWithIndex.maxBy(_._1)._2)
     }
-
     val r1=bn(xnor(in, w(0)), w(1))
+    println("gt mean: "+r1._2.toString)
     val r2=bn(xnor(r1._1, w(2)), w(3), r1._2)
     r2._3
   }
@@ -85,17 +90,23 @@ class InferenceTest(scheduler: IglooScheduler, topo:NNTopology, hwConfig:Hardwar
   step(3)
   poke(scheduler.io.memWen, false)
 
+  def keep= {
+    poke(scheduler.io.en, true)
+    poke(scheduler.io.memOffset, 0)
+    poke(scheduler.io.inputOffset, mems.length)
+  }
 
-  poke(scheduler.io.en, true)
-  poke(scheduler.io.memOffset, 0)
-  poke(scheduler.io.inputOffset, mems.length)
-
+  keep
   step(1)
 
+  scheduler.symbols.map(x=>println(x.toString))
+
   while(peek(scheduler.io.finished)!=1) {
-    println(peek(scheduler.io.state).toString)
+    keep
+    println(peek(scheduler.io.state).toString +", "+peek(scheduler.io.mean).toString())
     step(1)
   }
+  keep
   println(peek(scheduler.io.state).toString)
   expect(scheduler.io.result, gt)
 }

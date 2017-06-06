@@ -12,7 +12,7 @@ class Memo(val lineWidth:Int, val addrWidth:Int, val size:Int) extends Module {
     val rdData  = Output(Bits(lineWidth.W))
   })
 
-  val mem = Mem(size, UInt(lineWidth.W))
+  val mem = SyncReadMem(size, UInt(lineWidth.W))
 
   // write
   when (io.wen) { mem(io.wrAddr) := io.wrData }

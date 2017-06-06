@@ -13,6 +13,7 @@ class MaxBuffer(bitw:Int, bitr:Int, n:Int) extends Module {
     val in=Input(Vec(n, SInt(bitw.W)))
     val offset=Input(UInt(bitr.W))
     val out=Output(UInt(bitr.W))
+    val maxLen=Input(UInt(bitr.W))
   })
 
   val idxReg=Reg(UInt(bitr.W))
@@ -24,7 +25,7 @@ class MaxBuffer(bitw:Int, bitr:Int, n:Int) extends Module {
     else {
       assert(in.length % 2 == 0)
       reduce((0 until in.length by 2).map { i =>
-        val cmp = in(i)._2 > in(i + 1)._2
+        val cmp = in(i)._2 > in(i + 1)._2 || in(i+1)._1>=io.maxLen
         (Mux(cmp, in(i)._1, in(i + 1)._1), Mux(cmp, in(i)._2, in(i + 1)._2))
       })
     }

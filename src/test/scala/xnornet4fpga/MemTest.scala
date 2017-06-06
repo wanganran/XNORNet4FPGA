@@ -38,10 +38,12 @@ class MemTestModule(val hwConfig:HardwareConfig, val actualBW:Int) extends Modul
     reg:=1.U
   }
   when(io.test && reg===1.U){
+    printf("pre out: %d", amem.io.out)
     outreg:=amem.io.out
     reg:=2.U
   }
   when(io.test && reg===2.U){
+    printf("out: %d ",amem.io.out)
     outreg:=amem.io.out
     reg:=0.U
   }

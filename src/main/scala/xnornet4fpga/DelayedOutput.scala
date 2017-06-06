@@ -16,9 +16,11 @@ class DelayedOutput(w:Int, default:Int) extends Module {
 
   val reg=Reg(UInt(w.W))
   io.output:=reg
-  when(io.update){
-    reg:=io.input
-  }.elsewhen(io.reset) {
+  when(io.reset) {
     reg:=default.U(w.W)
+    printf("Delay reset! %d\n", reg)
+  }.elsewhen(io.update){
+    printf("Delay Update! %d\n", io.input)
+    reg:=io.input
   }
 }
