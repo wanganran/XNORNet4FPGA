@@ -13,6 +13,7 @@ case class HardwareConfig(memSize:Int,
                           maxInputWidth:Int,
                           maxFeatures:Int,
                           bnParamWidth:Int,
+                          bsWidth:Int,
                           opWidth:Int,
                           resultWidth:Int
                          ){
@@ -22,5 +23,6 @@ case class HardwareConfig(memSize:Int,
   val spareBandwidth=memLineWidth*memCnt-XNORFanout*XNORBitWidth
 }
 object HardwareConfig{
-  val default=HardwareConfig(256, 18, 8, 8, 32, 4, 256, 128, 16, 32, 4)
+  val twoway=HardwareConfig(512, 9, 9, 8, 32, 2, 256, 96, 16, 10, 32, 4)
+  val default=HardwareConfig(256, 18, 8, 8, 32, 4, 256, 128, 16, 10, 32, 4)
 }

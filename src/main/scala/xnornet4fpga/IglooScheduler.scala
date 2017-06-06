@@ -50,6 +50,8 @@ import chisel3.util._
   */
 class IglooScheduler(hwConfig: HardwareConfig, topo:NNTopology) extends Module {
   val TEST=true
+  val hw = Module(new XNORNetInference(hwConfig))
+
   val io = IO(new Bundle {
     val en = Input(Bool())
     val inputOffset = Input(UInt(hwConfig.memAddrWidth.W))
@@ -62,7 +64,7 @@ class IglooScheduler(hwConfig: HardwareConfig, topo:NNTopology) extends Module {
     //for input mem
     val memWen=Input(Bool())
     val memWAddr=Input(UInt(hwConfig.memAddrWidth.W))
-    val memIn=Input(UInt(128.W)) //TODO: parameterize
+    val memIn=Input(UInt(hw.mem.lineWidth.W))
 
     //for test
     val state=Output(UInt(16.W))
@@ -87,7 +89,6 @@ class IglooScheduler(hwConfig: HardwareConfig, topo:NNTopology) extends Module {
 
   //=== FIXED CONFIGURATION ===
 
-  val hw = Module(new XNORNetInference(hwConfig))
 
   //set delay registers
   val inputPushReg=RegInit(false.B)

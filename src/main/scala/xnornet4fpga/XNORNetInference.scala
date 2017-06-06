@@ -24,8 +24,8 @@ class XNORNetInference(hardwareConfig: HardwareConfig) extends Module {
   val mem=Module(new AggregateMem(hardwareConfig, maxPower2(hardwareConfig.memLineWidth)))
   val maxAccWidth=hardwareConfig.maxFeatures/hardwareConfig.XNORFanout //max # rounds of computations
   val bnCnt=mem.lineWidth/(hardwareConfig.bnParamWidth*2) //# of bn param pairs loaded each clock
-  val bnFanout=hardwareConfig.XNORFanout/bnCnt //TODO:now only support 1
-  assert(bnFanout==1)
+  val bnFanout=hardwareConfig.XNORFanout/bnCnt //TODO:now only support <1
+  assert(bnFanout<=1)
 
   val io=IO(new Bundle{
     val input=Input(Bits(mem.lineWidth.W))
@@ -96,11 +96,9 @@ class XNORNetInference(hardwareConfig: HardwareConfig) extends Module {
     hardwareConfig.XNORBitWidth, //input width
     hardwareConfig.XNORFanout))  //how many vectors are XNORed parallel
   xnor.io.in1:=binaryBuffer.io.out
-  xnor.io.in2:=mem.io.out.asTypeOf(Vec(hardwareConfig.XNORFanout, UInt(hardwareConfig.XNORBitWidth.W)))
+  val offset=hardwareConfig.XNORFanout*hardwareConfig.XNORBitWidth
+  xnor.io.in2:=mem.io.out(offset-1,0).asTypeOf(Vec(hardwareConfig.XNORFanout, UInt(hardwareConfig.XNORBitWidth.W)))
   //its output will be assigned later
-
-  io.xnorInput:=binaryBuffer.io.out
-  io.xnorWeight1:=mem.io.out(127,96)
 
   //Mean
 
@@ -134,7 +132,7 @@ class XNORNetInference(hardwareConfig: HardwareConfig) extends Module {
   val signs=for(i<-0 until hardwareConfig.XNORFanout) yield {
     //for each XNOR vector, go to accumulator, then go to a) BN buffer, and b) max
     val acc = Module(new Accumulator(
-      hardwareConfig.opWidth,
+      hardwareConfig.bsWidth,
       maxAccWidth))  //selection
     acc.io.in := BitSum(
       hardwareConfig.XNORBitWidth,
@@ -147,36 +145,16 @@ class XNORNetInference(hardwareConfig: HardwareConfig) extends Module {
 
     val mulAdd = Module(new MulAdd(
       hardwareConfig.bnParamWidth,
+      hardwareConfig.bsWidth,
       hardwareConfig.opWidth))
 
-    //choose to use a Sel or not
-    if(bnCnt>=hardwareConfig.XNORFanout) {
-      //no need to have Sel, direct map
-      val offset = (bnCnt - i) * hardwareConfig.bnParamWidth * 2
-      val bnPair = mem.io.out(offset - 1, offset - hardwareConfig.bnParamWidth * 2)
+    val offset = (hardwareConfig.XNORFanout - i) * hardwareConfig.bnParamWidth * 2
+    val bnPair = mem.io.out(offset - 1, offset - hardwareConfig.bnParamWidth * 2)
 
-      mulAdd.io.a := bnPair(hardwareConfig.bnParamWidth * 2 - 1, hardwareConfig.bnParamWidth).asSInt()
-      mulAdd.io.c := bnPair(hardwareConfig.bnParamWidth - 1, 0).asSInt()
-    }
-    else if(bnCnt<hardwareConfig.XNORFanout){
-      //TODO
-      assert(false)
-      //set up a register to save the result
-      val bnBuffer = Reg(Bits((hardwareConfig.bnParamWidth*2).W))
-      val offset = ((hardwareConfig.XNORFanout - i-1)%bnCnt+1) * hardwareConfig.bnParamWidth * 2
-      bnBuffer:= mem.io.out(offset-1, offset-hardwareConfig.bnParamWidth*2)(hardwareConfig.bnParamWidth*2*bnCnt-1, 0)
-    }
+    mulAdd.io.a := bnPair(hardwareConfig.bnParamWidth * 2 - 1, hardwareConfig.bnParamWidth).asSInt()
+    mulAdd.io.c := bnPair(hardwareConfig.bnParamWidth - 1, 0).asSInt()
     mulAdd.io.m:=mean.io.output
     mulAdd.io.b:=acc.io.out
-
-    if(i==0){
-      val offset = (bnCnt - i) * hardwareConfig.bnParamWidth * 2
-      val bnPair = mem.io.out(offset - 1, offset - hardwareConfig.bnParamWidth * 2)
-      io.maa := bnPair(hardwareConfig.bnParamWidth * 2 - 1, hardwareConfig.bnParamWidth).asSInt()
-      io.mac := bnPair(hardwareConfig.bnParamWidth - 1, 0).asSInt()
-      io.mab:=acc.io.out
-      io.mam:=mean.io.output
-    }
 
     meanBuffer.io.in(i):=mulAdd.io.r
     maxModule.io.in(i):=mulAdd.io.r

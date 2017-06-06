@@ -17,7 +17,7 @@ object TestAll extends App {
   //test
 
   test(new Accumulator(32, 4))(new AccumulatorTest(_))
-  test(new BinaryBuffer(256, 32, 128, 4))(new BinaryBufferTest(_, hwConfig))
+  test(new BinaryBuffer(256, hwConfig.XNORBitWidth, 128, hwConfig.XNORFanout))(new BinaryBufferTest(_, hwConfig))
   test(new BitSumModule())(new BitSumTest(_))
   test(new DelayedOutput(32, 1))(new DelayedOutputTest(_, 1))
   test(new MaxBuffer(32, 16, 4))(new MaxBufferTest(_, 4))
@@ -26,5 +26,6 @@ object TestAll extends App {
   test(new MemTestModule(hwConfig, 16))(new MemTest(_))
 
   val topo=SimpleMLP(256,10,96)
-  test(new IglooScheduler(hwConfig, topo))(new InferenceTest(_, topo, hwConfig))
+  val twowayConfig=HardwareConfig.twoway
+  test(new IglooScheduler(twowayConfig, topo))(new InferenceTest(_, topo, twowayConfig))
 }
