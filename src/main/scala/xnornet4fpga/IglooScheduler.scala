@@ -131,15 +131,24 @@ class IglooScheduler(hwConfig: HardwareConfig, topo:NNTopology) extends Module {
   //state
   val state=RegInit(S('init))
   val substate=RegInit(0.U(16.W))
+  val acc=RegInit(0.U(16.W))
+
   io.state:=state
   io.mean:=hw.io.mean
 
   def IS(x:Symbol, i:Int)=state===S(x) && substate===i.U
   def IS(x:Symbol)=state===S(x)
 
-  def SS(x:Symbol, i:Int=0){state:=S(x); substate:=i.U}
-  def SS(i:Int){substate:=i.U}
-  def SS(){substate:=substate+1.U}
+  def SS(x:Symbol){state:=S(x); substate:=0.U; acc:=0.U}
+  //def SS(i:Int){substate:=i.U}
+  def SS(){
+    substate:=substate+1.U
+    when(acc===layerParams.io.currentAccWidth-1.U){
+      acc:=0.U
+    } otherwise {
+      acc:=acc+1.U
+    }
+  }
 
   def set(x:Bits){x:=true.B}
   def unset(x:Bits){x:=false.B}
@@ -156,7 +165,7 @@ class IglooScheduler(hwConfig: HardwareConfig, topo:NNTopology) extends Module {
   hw.io.input:=hw.io.memOut
 
   //next acc is always related to substate
-  val acc=substate%layerParams.io.currentAccWidth
+  //val acc=substate%layerParams.io.currentAccWidth
   hw.io.accSel:=acc
 
   io.finished:=IS('finished)
